@@ -1,6 +1,6 @@
 
 from common.handler import JsonHandler, AuthenticatedHandler
-from common.access import scoped, AccessToken
+from common.access import scoped, AccessToken, remote_ip
 
 from tornado.gen import coroutine
 from tornado.web import HTTPError, stream_request_body
@@ -36,6 +36,10 @@ class UploadReportHandler(AuthenticatedHandler):
             report_info = ujson.loads(self.get_argument("info", "{}"))
         except (KeyError, ValueError):
             raise HTTPError(400, "Corrupted 'info' argument.")
+
+        reporter_ip = remote_ip(self.request)
+        if reporter_ip:
+            report_info["reporter-ip"] = reporter_ip
 
         payload = self.request.body
 

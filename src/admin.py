@@ -373,7 +373,7 @@ class ApplicationVersionController(a.AdminController):
         if self.context.get("account_id") or self.context.get("info"):
             methods["clear_filters"] = a.method("Clear filters", "default", order=2)
 
-        return [
+        r = [
             a.breadcrumbs([
                 a.link("index", "Reports"),
                 a.link("apps", "Applications"),
@@ -399,8 +399,13 @@ class ApplicationVersionController(a.AdminController):
                 }, {
                     "id": "time",
                     "title": "Report Time"
-                }], reports, "default", empty="No reports to display"),
-            a.pages(data["pages_count"]),
+                }], reports, "default", empty="No reports to display")
+        ]
+
+        if data["pages_count"]:
+            a.pages(data["pages_count"])
+
+        r.extend([
             a.form("Filters", fields={
                 "account_id": a.field("Reporter Account", "text", "primary", order=1),
                 "report_message": a.field("Report Message", "text", "primary", order=2),
@@ -411,4 +416,6 @@ class ApplicationVersionController(a.AdminController):
             a.links("Navigate", [
                 a.link("app", "Go back", icon="chevron-left", app_name=self.context.get("app_name"))
             ])
-        ]
+        ])
+
+        return r
