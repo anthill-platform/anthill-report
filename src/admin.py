@@ -403,7 +403,7 @@ class ApplicationVersionController(a.AdminController):
         ]
 
         if data["pages_count"]:
-            a.pages(data["pages_count"])
+            r.append(a.pages(data["pages_count"]))
 
         r.extend([
             a.form("Filters", fields={
