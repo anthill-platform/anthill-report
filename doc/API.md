@@ -9,7 +9,7 @@ PUT /upload
 ```
 
 File body should be passed as `PUT` request contents, other arguments should be passed
-as query arguments. The file will land on user's account folder.
+as query arguments.
 
 | Argument         | Description                        |
 |------------------|------------------------------------|
