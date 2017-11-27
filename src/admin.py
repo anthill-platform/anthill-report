@@ -272,7 +272,7 @@ class ApplicationVersionController(a.AdminController):
                 data.writerow([
                     str(report.report_id),
                     str(report.category),
-                    str(report.message),
+                    str(report.message.encode("ascii", "ignore")),
                     str(report.account_id),
                     str(ujson.dumps(report.info)),
                     str(report.time),
