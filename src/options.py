@@ -67,10 +67,10 @@ define("rate_cache_max_connections",
        type=int)
 
 define("rate_report_upload",
-       default=(10, 600),
+       default="10,600",
        help="A limit for report upload for user tuple: (amount, time)",
        group="ratelimit",
-       type=tuple)
+       type=str)
 
 # Regular cache
 
