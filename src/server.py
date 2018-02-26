@@ -29,7 +29,7 @@ class ReportServer(common.server.Server):
             user=options.db_username,
             password=options.db_password)
 
-        self.reports = ReportsModel(self.db)
+        self.reports = ReportsModel(self.db, self)
         self.ratelimit = common.ratelimit.RateLimit({
             "report_upload": options.rate_report_upload
         })

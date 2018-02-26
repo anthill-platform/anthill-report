@@ -176,9 +176,10 @@ class ReportQuery(object):
 
 
 class ReportsModel(Model):
-    def __init__(self, db):
+    def __init__(self, db, application):
         self.db = db
         self.max_report_size = options.max_report_size
+        self.application = application
 
     def get_setup_tables(self):
         return ["reports"]
@@ -207,6 +208,8 @@ class ReportsModel(Model):
                 category, message, ujson.dumps(report_info), str(report_format), report_payload)
         except DatabaseError as e:
             raise ReportError(500, e.args[1])
+
+        self.application.monitor_rate("report_upload", "count", category=category)
 
         raise Return(report_id)
 
