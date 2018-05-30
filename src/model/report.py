@@ -187,6 +187,27 @@ class ReportsModel(Model):
     def get_setup_db(self):
         return self.db
 
+    def has_delete_account_event(self):
+        return True
+
+    @coroutine
+    def accounts_deleted(self, gamespace, accounts, gamespace_only):
+        try:
+            if gamespace_only:
+                yield self.db.execute(
+                    """
+                        DELETE FROM `reports`
+                        WHERE `gamespace_id`=%s AND `account_id` IN %s;
+                    """, gamespace, accounts)
+            else:
+                yield self.db.execute(
+                    """
+                        DELETE FROM `reports`
+                        WHERE `account_id` IN %s;
+                    """, accounts)
+        except DatabaseError as e:
+            raise ReportError(500, "Failed to delete reports from users: " + e.args[1])
+
     @coroutine
     @validate(gamespace_id="int", account_id="int", application_name="str_name",
               application_version="str", category="str_name", message="str",
