@@ -4,7 +4,7 @@ from tornado.gen import coroutine, Return
 import common.admin as a
 
 from common.validate import validate
-from common.environment import AppNotFound
+from common.environment import EnvironmentClient, AppNotFound
 from common.database import format_conditions_json, ConditionError
 
 from model.report import ReportError, ReportFormat
@@ -32,8 +32,8 @@ class RootAdminController(a.AdminController):
 class ApplicationsController(a.AdminController):
     @coroutine
     def get(self):
-        env_service = self.application.env_service
-        apps = yield env_service.list_apps()
+        environment_client = EnvironmentClient(self.application.cache)
+        apps = yield environment_client.list_apps()
 
         result = {
             "apps": apps
@@ -64,20 +64,20 @@ class ApplicationController(a.AdminController):
     @coroutine
     def get(self, app_name):
 
-        env_service = self.application.env_service
+        environment_client = EnvironmentClient(self.application.cache)
 
         try:
-            app = yield env_service.get_app_info(app_name)
+            app = yield environment_client.get_app_info(app_name)
         except AppNotFound as e:
             raise a.ActionError("App was not found.")
 
-        app_versions = app["versions"].keys()
+        app_versions = app.versions.keys()
         app_versions.sort()
 
         result = {
             "app_name": app_name,
-            "app_title": app["title"],
-            "app_record_id": app["id"],
+            "app_title": app.title,
+            "app_record_id": app.id,
             "versions": app_versions
         }
 
@@ -110,7 +110,7 @@ class ApplicationController(a.AdminController):
 class ReportController(a.AdminController):
     @coroutine
     def get(self, report_id, download=False):
-        env_service = self.application.env_service
+        environment_client = EnvironmentClient(self.application.cache)
         reports = self.application.reports
 
         try:
@@ -134,11 +134,11 @@ class ReportController(a.AdminController):
                                     "_" + str(app_version) + ext)
 
         try:
-            app = yield env_service.get_app_info(app_name)
+            app = yield environment_client.get_app_info(app_name)
         except AppNotFound as e:
             app_title = app_name
         else:
-            app_title = app["title"]
+            app_title = app.title
 
         raise Return({
             "account_id": report.account_id,
@@ -208,15 +208,15 @@ class ApplicationVersionController(a.AdminController):
             category=None,
             export=False):
 
-        env_service = self.application.env_service
+        environment_client = EnvironmentClient(self.application.cache)
         reports = self.application.reports
 
         try:
-            app = yield env_service.get_app_info(app_name)
+            app = yield environment_client.get_app_info(app_name)
         except AppNotFound as e:
             raise a.ActionError("App was not found.")
 
-        versions = app["versions"]
+        versions = app.versions
 
         if app_version not in versions:
             raise a.ActionError("No such app version")
@@ -287,8 +287,8 @@ class ApplicationVersionController(a.AdminController):
 
         raise Return({
             "app_name": app_name,
-            "app_title": app["title"],
-            "app_record_id": app["id"],
+            "app_title": app.title,
+            "app_record_id": app.id,
             "reports": reports,
             "account_id": account_id,
             "report_message": report_message,

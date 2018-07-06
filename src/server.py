@@ -10,7 +10,6 @@ import common.sign
 import common.ratelimit
 
 from common.keyvalue import KeyValueStorage
-from common.environment import EnvironmentClient
 
 from model.report import ReportsModel
 
@@ -39,8 +38,6 @@ class ReportServer(common.server.Server):
             port=options.cache_port,
             db=options.cache_db,
             max_connections=options.cache_max_connections)
-
-        self.env_service = EnvironmentClient(self.cache)
 
     def get_models(self):
         return [self.reports]
