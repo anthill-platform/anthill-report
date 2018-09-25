@@ -1,22 +1,20 @@
 
-from common.handler import JsonHandler, AuthenticatedHandler
-from common.access import scoped, AccessToken, remote_ip
+from anthill.common.handler import JsonHandler, AuthenticatedHandler
+from anthill.common.access import scoped, AccessToken, remote_ip
 
-from tornado.gen import coroutine
 from tornado.web import HTTPError, stream_request_body
 
-from common.options import options
-from common.ratelimit import RateLimitExceeded
+from anthill.common.options import options
+from anthill.common.ratelimit import RateLimitExceeded
 
-from model.report import ReportError, ReportFormat
+from . model.report import ReportError, ReportFormat
 
 import ujson
 
 
 class UploadReportHandler(AuthenticatedHandler):
     @scoped(scopes=["report_upload"])
-    @coroutine
-    def put(self, application_name, application_version):
+    async def put(self, application_name, application_version):
 
         reports = self.application.reports
         account_id = self.token.account
@@ -44,16 +42,16 @@ class UploadReportHandler(AuthenticatedHandler):
         payload = self.request.body
 
         try:
-            limited = yield self.application.ratelimit.limit("report_upload", account_id)
+            limited = await self.application.ratelimit.limit("report_upload", account_id)
         except RateLimitExceeded:
             raise HTTPError(429, "Too many report uploads")
 
         try:
-            report_id = yield reports.create_report(
+            report_id = await reports.create_report(
                 gamespace_id, account_id, application_name, application_version,
                 category, message, report_info, report_format, payload)
         except ReportError as e:
-            yield limited.rollback()
+            await limited.rollback()
             raise HTTPError(e.code, e.message)
 
         self.dumps({

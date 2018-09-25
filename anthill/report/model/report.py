@@ -1,12 +1,10 @@
 
-from tornado.gen import coroutine, Return
+from anthill.common.model import Model
+from anthill.common.validate import validate
+from anthill.common.database import DatabaseError
+from anthill.common.options import options
 
-from common.model import Model
-from common.validate import validate
-from common.database import DatabaseError
-from common.options import options
-
-from common import Enum
+from anthill.common import Enum
 
 import ujson
 import re
@@ -112,8 +110,7 @@ class ReportQuery(object):
 
         return conditions, data
 
-    @coroutine
-    def query(self, one=False, count=False):
+    async def query(self, one=False, count=False):
         conditions, data = self.__values__()
 
         fields = "`report_id`, `account_id`, `report_category`, " \
@@ -147,21 +144,21 @@ class ReportQuery(object):
 
         adapter = ReportPayloadAdapter if self.include_payload else ReportAdapter
 
-        with (yield self.db.acquire()) as db:
+        async with self.db.acquire() as db:
             if one:
-                result = yield db.get(query, *data)
+                result = await db.get(query, *data)
 
                 if not result:
-                    raise Return(None)
+                    return None
 
-                raise Return(adapter(result))
+                return adapter(result)
             else:
-                result = yield db.query(query, *data)
+                result = await db.query(query, *data)
 
                 count_result = 0
 
                 if count:
-                    count_result = yield db.get(
+                    count_result = await db.get(
                         """
                             SELECT FOUND_ROWS() AS count;
                         """)
@@ -170,9 +167,9 @@ class ReportQuery(object):
                 items = map(adapter, result)
 
                 if count:
-                    raise Return((items, count_result))
+                    return (items, count_result)
 
-                raise Return(items)
+                return items
 
 
 class ReportsModel(Model):
@@ -190,17 +187,16 @@ class ReportsModel(Model):
     def has_delete_account_event(self):
         return True
 
-    @coroutine
-    def accounts_deleted(self, gamespace, accounts, gamespace_only):
+    async def accounts_deleted(self, gamespace, accounts, gamespace_only):
         try:
             if gamespace_only:
-                yield self.db.execute(
+                await self.db.execute(
                     """
                         DELETE FROM `reports`
                         WHERE `gamespace_id`=%s AND `account_id` IN %s;
                     """, gamespace, accounts)
             else:
-                yield self.db.execute(
+                await self.db.execute(
                     """
                         DELETE FROM `reports`
                         WHERE `account_id` IN %s;
@@ -208,18 +204,17 @@ class ReportsModel(Model):
         except DatabaseError as e:
             raise ReportError(500, "Failed to delete reports from users: " + e.args[1])
 
-    @coroutine
     @validate(gamespace_id="int", account_id="int", application_name="str_name",
               application_version="str", category="str_name", message="str",
               report_info="json_dict", report_format=ReportFormat, report_payload="bytes")
-    def create_report(self, gamespace_id, account_id, application_name, application_version,
-                      category, message, report_info, report_format, report_payload):
+    async def create_report(self, gamespace_id, account_id, application_name, application_version,
+                            category, message, report_info, report_format, report_payload):
 
         if len(report_payload) > self.max_report_size:
             raise ReportError(400, "Report maximum size exceeded")
 
         try:
-            report_id = yield self.db.insert(
+            report_id = await self.db.insert(
                 """
                     INSERT INTO `reports`
                     (`gamespace_id`, `account_id`, `application_name`, `application_version`, 
@@ -232,13 +227,12 @@ class ReportsModel(Model):
 
         self.application.monitor_rate("report_upload", "count", category=category)
 
-        raise Return(report_id)
+        return report_id
 
-    @coroutine
     @validate(gamespace_id="int", report_id="int")
-    def get_report(self, gamespace_id, report_id):
+    async def get_report(self, gamespace_id, report_id):
         try:
-            report = yield self.db.get(
+            report = await self.db.get(
                 """
                     SELECT * FROM `reports`
                     WHERE `gamespace_id`=%s AND `report_id`=%s
@@ -250,7 +244,7 @@ class ReportsModel(Model):
         if not report:
             raise ReportError(404, "No such report")
 
-        raise Return(ReportPayloadAdapter(report))
+        return ReportPayloadAdapter(report)
 
     @validate(gamespace_id="int", application_name="str_name", application_version="str")
     def reports_query(self, gamespace_id, application_name, application_version):

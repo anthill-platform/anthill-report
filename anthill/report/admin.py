@@ -1,18 +1,14 @@
+import anthill.common.admin as a
 
-from tornado.gen import coroutine, Return
+from anthill.common.environment import EnvironmentClient, AppNotFound
+from anthill.common.database import format_conditions_json, ConditionError
 
-import common.admin as a
-
-from common.validate import validate
-from common.environment import EnvironmentClient, AppNotFound
-from common.database import format_conditions_json, ConditionError
-
-from model.report import ReportError, ReportFormat
+from . model.report import ReportError, ReportFormat
 
 import ujson
 import math
 import csv
-import StringIO
+from io import StringIO
 import base64
 
 
@@ -30,16 +26,15 @@ class RootAdminController(a.AdminController):
 
 
 class ApplicationsController(a.AdminController):
-    @coroutine
-    def get(self):
+    async def get(self):
         environment_client = EnvironmentClient(self.application.cache)
-        apps = yield environment_client.list_apps()
+        apps = await environment_client.list_apps()
 
         result = {
             "apps": apps
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
         return [
@@ -48,7 +43,7 @@ class ApplicationsController(a.AdminController):
             ], "Applications"),
             a.links("Select application", links=[
                 a.link("app", app_title, icon="mobile", app_name=app_name)
-                for app_name, app_title in data["apps"].iteritems()
+                for app_name, app_title in data["apps"].items()
             ]),
             a.links("Navigate", [
                 a.link("index", "Go back", icon="chevron-left"),
@@ -61,13 +56,12 @@ class ApplicationsController(a.AdminController):
 
 
 class ApplicationController(a.AdminController):
-    @coroutine
-    def get(self, app_name):
+    async def get(self, app_name):
 
         environment_client = EnvironmentClient(self.application.cache)
 
         try:
-            app = yield environment_client.get_app_info(app_name)
+            app = await environment_client.get_app_info(app_name)
         except AppNotFound as e:
             raise a.ActionError("App was not found.")
 
@@ -81,7 +75,7 @@ class ApplicationController(a.AdminController):
             "versions": app_versions
         }
 
-        raise a.Return(result)
+        return result
 
     def render(self, data):
 
@@ -108,13 +102,12 @@ class ApplicationController(a.AdminController):
 
 
 class ReportController(a.AdminController):
-    @coroutine
-    def get(self, report_id, download=False):
+    async def get(self, report_id, download=False):
         environment_client = EnvironmentClient(self.application.cache)
         reports = self.application.reports
 
         try:
-            report = yield reports.get_report(self.gamespace, report_id)
+            report = await reports.get_report(self.gamespace, report_id)
         except ReportError as e:
             raise a.ActionError(e)
 
@@ -134,13 +127,13 @@ class ReportController(a.AdminController):
                                     "_" + str(app_version) + ext)
 
         try:
-            app = yield environment_client.get_app_info(app_name)
+            app = await environment_client.get_app_info(app_name)
         except AppNotFound as e:
             app_title = app_name
         else:
             app_title = app.title
 
-        raise Return({
+        return {
             "account_id": report.account_id,
             "app_name": app_name,
             "app_version": app_version,
@@ -152,7 +145,7 @@ class ReportController(a.AdminController):
             "format": report.format,
             "format_title": str(report.format).upper(),
             "payload": report.payload
-        })
+        }
 
     def render(self, data):
         r = [
@@ -200,20 +193,19 @@ class ReportController(a.AdminController):
 class ApplicationVersionController(a.AdminController):
     REPORTS_PER_PAGE = 20
 
-    @coroutine
-    def get(self, app_name, app_version, page=1,
-            info=None,
-            account_id=None,
-            report_message=None,
-            category=None,
-            export=False):
+    async def get(self, app_name, app_version, page=1,
+                  info=None,
+                  account_id=None,
+                  report_message=None,
+                  category=None,
+                  export=False):
 
         environment_client = EnvironmentClient(self.application.cache)
         reports = self.application.reports
 
         try:
-            app = yield environment_client.get_app_info(app_name)
-        except AppNotFound as e:
+            app = await environment_client.get_app_info(app_name)
+        except AppNotFound:
             raise a.ActionError("App was not found.")
 
         versions = app.versions
@@ -249,16 +241,16 @@ class ApplicationVersionController(a.AdminController):
             try:
                 cond = format_conditions_json('report_info', info)
             except ConditionError as e:
-                raise a.ActionError(e.message)
+                raise a.ActionError(str(e))
 
             query.add_conditions(cond)
         else:
             info = {}
 
         if export:
-            reports = yield query.query(one=False, count=False)
+            reports = await query.query(one=False, count=False)
 
-            output = StringIO.StringIO()
+            output = StringIO()
             data = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
 
             data.writerow(["Report ID", "Category", "Message", "Sender", "Info", "Time", "Format", "Contents"])
@@ -282,10 +274,10 @@ class ApplicationVersionController(a.AdminController):
 
             raise a.BinaryFile(output.getvalue(), "reports.csv")
 
-        reports, count = yield query.query(one=False, count=True)
+        reports, count = await query.query(one=False, count=True)
         pages = int(math.ceil(float(count) / float(ApplicationVersionController.REPORTS_PER_PAGE)))
 
-        raise Return({
+        return {
             "app_name": app_name,
             "app_title": app.title,
             "app_record_id": app.id,
@@ -296,18 +288,16 @@ class ApplicationVersionController(a.AdminController):
             "info": info,
             "pages_count": pages,
             "total_count": count
-        })
+        }
 
-    @coroutine
-    def clear_filters(self, **args):
+    async def clear_filters(self, **args):
 
         app_name = self.context.get("app_name")
         app_version = self.context.get("app_version")
 
         raise a.Redirect("app_version", app_name=app_name, app_version=app_version)
 
-    @coroutine
-    def filter(self, **args):
+    async def filter(self, **args):
 
         app_name = self.context.get("app_name")
         app_version = self.context.get("app_version")
@@ -323,8 +313,7 @@ class ApplicationVersionController(a.AdminController):
         filters.update(args)
         raise a.Redirect("app_version", **filters)
 
-    @coroutine
-    def export_reports(self, **args):
+    async def export_reports(self, **args):
 
         app_name = self.context.get("app_name")
         app_version = self.context.get("app_version")

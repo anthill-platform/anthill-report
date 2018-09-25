@@ -1,39 +1,29 @@
 
-from tornado.gen import coroutine
-from common.options import options
+from anthill.common.options import options
+from anthill.common import server, handler, database, access, sign, ratelimit, keyvalue
 
-import common.server
-import common.handler
-import common.database
-import common.access
-import common.sign
-import common.ratelimit
-
-from common.keyvalue import KeyValueStorage
-
-from model.report import ReportsModel
-
-import handler
-import admin
-import options as _opts
+from . import handler as h
+from . import options as _opts
+from . model.report import ReportsModel
+from . import admin
 
 
-class ReportServer(common.server.Server):
+class ReportServer(server.Server):
     def __init__(self):
         super(ReportServer, self).__init__()
 
-        self.db = common.database.Database(
+        self.db = database.Database(
             host=options.db_host,
             database=options.db_name,
             user=options.db_username,
             password=options.db_password)
 
         self.reports = ReportsModel(self.db, self)
-        self.ratelimit = common.ratelimit.RateLimit({
+        self.ratelimit = ratelimit.RateLimit({
             "report_upload": options.rate_report_upload
         })
 
-        self.cache = KeyValueStorage(
+        self.cache = keyvalue.KeyValueStorage(
             host=options.cache_host,
             port=options.cache_port,
             db=options.cache_db,
@@ -60,11 +50,11 @@ class ReportServer(common.server.Server):
 
     def get_handlers(self):
         return [
-            (r"/upload/(.*)/(.*)", handler.UploadReportHandler),
+            (r"/upload/(.*)/(.*)", h.UploadReportHandler),
         ]
 
 
 if __name__ == "__main__":
-    stt = common.server.init()
-    common.access.AccessToken.init([common.access.public()])
-    common.server.start(ReportServer)
+    stt = server.init()
+    access.AccessToken.init([access.public()])
+    server.start(ReportServer)
