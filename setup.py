@@ -7,6 +7,9 @@ DEPENDENCIES = [
 
 setup(
     name='anthill-report',
+    package_data={
+      "anthill.report": ["anthill/report/sql", "anthill/report/static"]
+    },
     setup_requires=["pypigit-version"],
     git_version="0.1.0",
     description='User submitted reports collecting service',
