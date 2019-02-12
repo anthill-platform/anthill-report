@@ -65,7 +65,7 @@ class ApplicationController(a.AdminController):
         except AppNotFound as e:
             raise a.ActionError("App was not found.")
 
-        app_versions = app.versions.keys()
+        app_versions = list(app.versions.keys())
         app_versions.sort()
 
         result = {
