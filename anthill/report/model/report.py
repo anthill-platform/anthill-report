@@ -128,6 +128,10 @@ class ReportQuery(object):
             WHERE {0}
         """.format(" AND ".join(conditions))
 
+        query += """
+            ORDER BY `report_id` DESC
+        """
+
         if self.limit:
             query += """
                 LIMIT %s,%s
@@ -167,7 +171,7 @@ class ReportQuery(object):
                 items = map(adapter, result)
 
                 if count:
-                    return (items, count_result)
+                    return items, count_result
 
                 return items
 
